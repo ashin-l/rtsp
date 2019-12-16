@@ -7,13 +7,13 @@ var mff = new Map()
 var app = express()
 expressWS(app)
 app.ws("/rtsp/:id", handle)
-app.listen(8888)
+app.listen(50000)
 
 
 function getffm(url) {
   //const p = new Promise((resolve, reject) => {
   var ffmpegCommand = new ffmpeg(url)
-    .addInputOption("-analyzeduration", "100", "-max_delay", "100")
+    .addInputOption("-rtsp_transport", "tcp", "-buffer_size", "1024000", "-max_delay", "500000", "-stimeout", "20000000", "-analyzeduration", "1000", "-max_delay", "1000") // buffer_size 提高画质，减少花屏现象
     //.on("start", function () {
     //  console.log(url, "Stream started.");
     //})
@@ -70,9 +70,10 @@ function writeStream(id, url, stream) {
 }
 
 function handle(ws, req) {
-  let url = req.query.url;
+  let url = decodeURIComponent(req.query.url);
   var stream = webSocketStream(ws, {
     binary: true,
   })
+  console.log(req.params.id, req.query.url)
   writeStream(req.params.id, req.query.url, stream)
 }

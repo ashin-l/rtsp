@@ -4,6 +4,7 @@ var webSocketStream = require('websocket-stream/stream')
 var ffmpeg = require('fluent-ffmpeg')
 
 var mff = new Map()
+var wsnum = new Map()
 var app = express()
 expressWS(app)
 app.ws("/rtsp/:id", handle)
@@ -35,8 +36,16 @@ function getffm(url) {
 
 function writeStream(id, url, stream) {
   if (mff.has(id)) {
+    wsnum.set(id, wsnum.get(id) + 1)
     ffm = mff.get(id)
     //ffm.videoCodec("copy").noAudio().clone().pipe(stream)
+    stream.on("close", function () {
+      wsnum.set(id, wsnum.get(id) - 1)
+      if (wsnum.get(id) == 0) {
+        ffm.kill('SIGKILL');
+        mff.delete(id)
+      }
+    });
     ffm.clone()
       .on("start", function () {
         console.log(url, "Stream started.");
@@ -51,8 +60,16 @@ function writeStream(id, url, stream) {
       })
       .pipe(stream)
   } else {
+    wsnum.set(id, 1)
     ffm = getffm(url)
     mff.set(id, ffm)
+    stream.on("close", function () {
+      wsnum.set(id, wsnum.get(id) - 1)
+      if (wsnum.get(id) == 0) {
+        ffm.kill('SIGKILL');
+        mff.delete(id)
+      }
+    });
     ffm.clone()
       .on("start", function () {
         console.log(url, "Stream started.");
